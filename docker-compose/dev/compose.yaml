@@ -1,0 +1,124 @@
+version: '3.8'
+services:
+  rabbit:
+    image: rabbitmq:3.12-management
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics check_port_connectivity
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - aouki
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: study
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - aouki  # Add this line to connect mysql to the aouki network
+  msoauth:
+    image: aouki/oauthms:v1
+    container_name: msoauth
+    depends_on:
+      mysql:
+        condition: service_started
+      configServer:
+        condition: service_healthy
+    ports:
+      - "8090:8090"
+    networks:
+      - aouki
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/study?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_RABBITMQ_HOST: "rabbit"
+      ENCRYPT_KEY: a8f5f167f44f4964e6c998dee827110c8bd4e48b41c12c8b65b8b8e8e8e8e8e81;
+      GIT_KEY: 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
+      SPRING_CONFIG_IMPORT: configserver:http://configServer:8060/
+      SPRING_CLOUD_CONFIG_SERVER_GIT_USERNAME: chawky
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_APPLICATION_NAME: msaouth
+    restart: on-failure
+  jwtoauth:
+    image: aouki/jwtauth:v1
+    container_name: jwtauth
+    depends_on:
+      mysql:
+        condition: service_started
+      configServer:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    networks:
+      - aouki
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/study?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_RABBITMQ_HOST: "rabbit"
+      SPRING_CONFIG_IMPORT: configserver:http://configServer:8060/
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_APPLICATION_NAME: JwtAuth
+    restart: on-failure
+  mainms:
+    image: aouki/mainms:v1
+    container_name: mainms
+    depends_on:
+      mysql:
+        condition: service_started
+      configServer:
+        condition: service_healthy
+    ports:
+      - "8070:8070"
+    networks:
+      - aouki
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/study?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      SPRING_RABBITMQ_HOST: "rabbit"
+      SPRING_CONFIG_IMPORT: configserver:http://configServer:8060/
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_APPLICATION_NAME: mainms
+    restart: on-failure
+  configServer:
+      image: aouki/configserver:v1
+      container_name: configserver
+      depends_on:
+        rabbit:
+          condition: service_healthy
+      ports:
+        - "8060:8060"
+      healthcheck:
+        test: ["CMD-SHELL", "curl --fail --silent localhost:8060/actuator/health/readiness | grep UP || exit 1"]
+        interval: 10s
+        timeout: 5s
+        retries: 10
+        start_period: 10s
+      networks:
+        - aouki
+      environment:
+        SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/study?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+        SPRING_DATASOURCE_USERNAME: root
+        SPRING_DATASOURCE_PASSWORD: root
+        SPRING_RABBITMQ_HOST: "rabbit"
+        SPRING_CLOUD_CONFIG_SERVER_GIT_USERNAME: chawky
+        ENCRYPT_KEY: a8f5f167f44f4964e6c998dee827110c8bd4e48b41c12c8b65b8b8e8e8e8e8e81;
+        GIT_KEY: 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
+      restart: on-failure
+volumes:
+  mysql_data:
+networks:
+  aouki:
+    driver: "bridge"
