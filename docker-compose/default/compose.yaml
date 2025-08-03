@@ -18,7 +18,7 @@ services:
     depends_on:
       - mysql
     ports:
-      - "7090:8090"
+      - "8090:8090"
     networks:
       - aouki
     environment:
@@ -32,7 +32,7 @@ services:
     depends_on:
       - mysql
     ports:
-      - "7080:8080"
+      - "8080:8080"
     networks:
       - aouki
     environment:
@@ -46,7 +46,7 @@ services:
     depends_on:
       - mysql
     ports:
-      - "7070:8070"
+      - "8070:8070"
     networks:
       - aouki
     environment:
@@ -54,6 +54,22 @@ services:
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
     restart: on-failure
+  configServer:
+      image: aouki/configserver:v1
+      container_name: configserver
+      depends_on:
+        - mysql
+      ports:
+        - "8060:8060"
+      networks:
+        - aouki
+      environment:
+        SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/study?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+        SPRING_DATASOURCE_USERNAME: root
+        SPRING_DATASOURCE_PASSWORD: root
+        ENCRYPT_KEY: a8f5f167f44f4964e6c998dee827110c8bd4e48b41c12c8b65b8b8e8e8e8e8e81;
+        GIT_KEY: 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
+      restart: on-failure
 volumes:
   mysql_data:
 networks:
